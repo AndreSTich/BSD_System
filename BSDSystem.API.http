@@ -1,0 +1,6 @@
+@BSDSystem.API_HostAddress = http://localhost:5082
+
+GET {{BSDSystem.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
