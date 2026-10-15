@@ -204,6 +204,7 @@ public partial class BsdDbContext : DbContext
                 .IsUnicode(false)
                 .HasColumnName("Disturber_Type");
             entity.Property(e => e.EmployeeId).HasColumnName("Employee_ID");
+            entity.Property(e => e.Statuse).HasColumnName("Statuse").HasDefaultValue(false);
 
             entity.HasOne(d => d.Approver).WithMany(p => p.ExplanatoryApprovers)
                 .HasForeignKey(d => d.ApproverId)

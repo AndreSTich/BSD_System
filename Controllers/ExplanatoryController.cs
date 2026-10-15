@@ -40,7 +40,7 @@ namespace BSDSystem.API.Controllers
                 .Include(ex => ex.Approver);
 
             if (currentUser.Role.Title == "штаб")
-            {}
+            { }
             else if (currentUser.Role.Title == "командир")
             {
                 query = query.Where(ex => ex.Employee.SubdivisionId == currentUser.SubdivisionId);
@@ -66,10 +66,10 @@ namespace BSDSystem.API.Controllers
                     DisturberType = ex.DisturberType,
                     Dates = ex.Dates,
                     ApproverId = ex.ApproverId,
-                    ApproverFullName = ex.ApproverId != ex.EmployeeId
+                    ApproverFullName = ex.Statuse
                         ? $"{ex.Approver.LastName} {ex.Approver.FirstName}"
                         : "Ожидает проверки",
-                    IsApproved = ex.ApproverId != ex.EmployeeId
+                    IsApproved = ex.Statuse
                 })
                 .ToListAsync();
 
@@ -89,7 +89,7 @@ namespace BSDSystem.API.Controllers
                 string.IsNullOrWhiteSpace(dto.DisturberFirstName) ||
                 string.IsNullOrWhiteSpace(dto.DisturberType))
             {
-                return BadRequest(new { message = "Заполните обязательные поля: Фамилия, Имя нарушителя и суть нарушения." });
+                return BadRequest(new { message = "Заполните обязательные поля: Фамилия, Имя нарушителя и вид нарушения." });
             }
 
             var note = new Explanatory
@@ -101,13 +101,14 @@ namespace BSDSystem.API.Controllers
                 DisturberRoomNumber = string.IsNullOrWhiteSpace(dto.DisturberRoomNumber) ? null : dto.DisturberRoomNumber.Trim(),
                 DisturberType = dto.DisturberType.Trim(),
                 Dates = dto.Dates,
-                ApproverId = currentUserId
+                ApproverId = currentUserId,
+                Statuse = false 
             };
 
             _context.Explanatories.Add(note);
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Объяснительная успешно подана на рассмотрение!" });
+            return Ok(new { message = "Объяснительная успешно создана." });
         }
 
         [HttpPost("{id}/approve")]
@@ -129,11 +130,12 @@ namespace BSDSystem.API.Controllers
                 return NotFound(new { message = "Запись не найдена." });
             }
 
-            if (note.ApproverId != note.EmployeeId)
+            if (note.Statuse)
             {
-                return BadRequest(new { message = "Данная объяснительная уже была утверждена ранее." });
+                return BadRequest(new { message = "Данная объяснительная уже утверждена." });
             }
 
+            note.Statuse = true;
             note.ApproverId = approverId;
 
             const int rewardPoints = 5;
@@ -141,7 +143,31 @@ namespace BSDSystem.API.Controllers
 
             await _context.SaveChangesAsync();
 
-            return Ok(new { message = "Объяснительная утверждена! Сотруднику начислено +5 баллов рейтинга." });
+            return Ok(new { message = "Объяснительная утверждена! Автору начислено +5 баллов." });
+        }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "штаб")]
+        public async Task<IActionResult> Delete(int id)
+        {
+            var note = await _context.Explanatories
+                .Include(ex => ex.Employee)
+                .FirstOrDefaultAsync(ex => ex.Id == id);
+
+            if (note == null)
+            {
+                return NotFound(new { message = "Объяснительная не найдена." });
+            }
+
+            if (note.Statuse)
+            {
+                note.Employee.Rating = Math.Max(0, (note.Employee.Rating ?? 0) - 5);
+            }
+
+            _context.Explanatories.Remove(note);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Объяснительная успешно удалена." });
         }
     }
 }

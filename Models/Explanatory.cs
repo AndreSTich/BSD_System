@@ -22,6 +22,7 @@ public partial class Explanatory
     public DateOnly Dates { get; set; }
 
     public int ApproverId { get; set; }
+    public bool Statuse { get; set; }
 
     public virtual Employee Approver { get; set; } = null!;
 

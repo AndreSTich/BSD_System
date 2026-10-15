@@ -182,5 +182,37 @@ namespace BSDSystem.API.Controllers
 
             return Ok(new { message = "Мероприятие успешно создано!", id = newEvent.Id });
         }
+
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "штаб")]
+        public async Task<IActionResult> DeleteEvent(int id)
+        {
+            var eventEntity = await _context.Eventes.FindAsync(id);
+            if (eventEntity == null)
+            {
+                return NotFound(new { message = "Мероприятие не найдено." });
+            }
+
+            var participants = await _context.EventParticipants
+                .Include(ep => ep.Employee)
+                .Where(ep => ep.EventId == id)
+                .ToListAsync();
+
+            foreach (var p in participants)
+            {
+                if (p.Statuse)
+                {
+                    p.Employee.Rating = Math.Max(0, (p.Employee.Rating ?? 0) - 10);
+                }
+            }
+
+            _context.EventParticipants.RemoveRange(participants);
+
+            _context.Eventes.Remove(eventEntity);
+
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Мероприятие успешно отменено и удалено." });
+        }
     }
 }
