@@ -151,5 +151,36 @@ namespace BSDSystem.API.Controllers
             await _context.SaveChangesAsync();
             return Ok(new { message = "Отметки сохранены, рейтинг пересчитан." });
         }
+
+        [HttpPost]
+        [Authorize(Roles = "штаб")]
+        public async Task<IActionResult> CreateEvent([FromBody] EventCreateDto dto)
+        {
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int creatorId))
+            {
+                return Unauthorized(new { message = "Не удалось определить создателя мероприятия." });
+            }
+
+            if (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Location))
+            {
+                return BadRequest(new { message = "Укажите название и место проведения." });
+            }
+
+            var newEvent = new Evente
+            {
+                Title = dto.Title.Trim(),
+                Ttype = dto.Type?.Trim(),
+                Dates = dto.Date,
+                Times = dto.Time,
+                Locations = dto.Location.Trim(),
+                CreatorId = creatorId
+            };
+
+            _context.Eventes.Add(newEvent);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Мероприятие успешно создано!", id = newEvent.Id });
+        }
     }
 }
