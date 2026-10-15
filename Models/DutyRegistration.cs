@@ -10,6 +10,7 @@ public partial class DutyRegistration
     public int EmployeeId { get; set; }
 
     public int ApproverId { get; set; }
+    public bool Statuse { get; set; }
 
     public virtual Employee Approver { get; set; } = null!;
 

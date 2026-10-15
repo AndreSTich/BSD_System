@@ -12,4 +12,5 @@ public partial class Duty
     public DateOnly Dates { get; set; }
 
     public virtual Subdivision Subdivision { get; set; } = null!;
+    public virtual ICollection<DutyRegistration> DutyRegistrations { get; set; } = new List<DutyRegistration>();
 }

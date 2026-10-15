@@ -54,28 +54,28 @@ public partial class BsdDbContext : DbContext
 
         modelBuilder.Entity<DutyRegistration>(entity =>
         {
-            entity
-                .HasNoKey()
-                .ToTable("Duty_Registration");
+            entity.HasKey(e => new { e.DutyId, e.EmployeeId }); // Заменили HasNoKey()
+            entity.ToTable("Duty_Registration");
 
             entity.Property(e => e.ApproverId).HasColumnName("Approver_ID");
             entity.Property(e => e.DutyId).HasColumnName("Duty_ID");
             entity.Property(e => e.EmployeeId).HasColumnName("Employee_ID");
+            entity.Property(e => e.Statuse).HasColumnName("Statuse").HasDefaultValue(false);
 
             entity.HasOne(d => d.Approver).WithMany()
-                .HasForeignKey(d => d.ApproverId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Duty_Registration_Approver");
+            .HasForeignKey(d => d.ApproverId)
+            .OnDelete(DeleteBehavior.ClientSetNull)
+            .HasConstraintName("FK_Duty_Registration_Approver");
 
-            entity.HasOne(d => d.Duty).WithMany()
-                .HasForeignKey(d => d.DutyId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Duty_Registration_Duty");
+            entity.HasOne(d => d.Duty).WithMany(p => p.DutyRegistrations)
+            .HasForeignKey(d => d.DutyId)
+            .OnDelete(DeleteBehavior.ClientSetNull)
+            .HasConstraintName("FK_Duty_Registration_Duty");
 
             entity.HasOne(d => d.Employee).WithMany()
-                .HasForeignKey(d => d.EmployeeId)
-                .OnDelete(DeleteBehavior.ClientSetNull)
-                .HasConstraintName("FK_Duty_Registration_Employee");
+            .HasForeignKey(d => d.EmployeeId)
+            .OnDelete(DeleteBehavior.ClientSetNull)
+            .HasConstraintName("FK_Duty_Registration_Employee");
         });
 
         modelBuilder.Entity<Employee>(entity =>
