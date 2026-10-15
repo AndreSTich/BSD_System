@@ -128,8 +128,8 @@ public partial class BsdDbContext : DbContext
         modelBuilder.Entity<EventParticipant>(entity =>
         {
             entity
-                .HasNoKey()
-                .ToTable("Event_Participant");
+                .HasKey(e => new { e.EventId, e.EmployeeId });
+            entity.ToTable("Event_Participant");
 
             entity.Property(e => e.ApproverId).HasColumnName("Approver_ID");
             entity.Property(e => e.EmployeeId).HasColumnName("Employee_ID");

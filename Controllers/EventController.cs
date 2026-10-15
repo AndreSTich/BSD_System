@@ -10,10 +10,10 @@ namespace BSDSystem.API.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] 
+    [Authorize]
     public class EventController : ControllerBase
     {
-        private readonly BsdDbContext _context; 
+        private readonly BsdDbContext _context;
 
         public EventController(BsdDbContext context)
         {
@@ -73,7 +73,7 @@ namespace BSDSystem.API.Controllers
             {
                 EventId = id,
                 EmployeeId = currentUserId,
-                Statuse = false, 
+                Statuse = false,
                 ApproverId = eventEntity.CreatorId
             };
 
@@ -81,6 +81,75 @@ namespace BSDSystem.API.Controllers
             await _context.SaveChangesAsync();
 
             return Ok(new { message = "Вы успешно записались на мероприятие!" });
+        }
+
+        [HttpGet("{id}/participants")]
+        [Authorize(Roles = "штаб,командир")]
+        public async Task<IActionResult> GetEventParticipants(int id)
+        {
+            var eventExists = await _context.Eventes.AnyAsync(e => e.Id == id);
+            if (!eventExists)
+            {
+                return NotFound(new { message = "Мероприятие не найдено." });
+            }
+
+            var participants = await _context.EventParticipants
+                .Include(ep => ep.Employee)
+                    .ThenInclude(e => e.Subdivision)
+                .Where(ep => ep.EventId == id)
+                .Select(ep => new AttendanceDto
+                {
+                    EmployeeId = ep.EmployeeId,
+                    FullName = $"{ep.Employee.LastName} {ep.Employee.FirstName}" +
+                               (string.IsNullOrEmpty(ep.Employee.MiddleName) ? "" : $" {ep.Employee.MiddleName}"),
+                    SubdivisionTitle = ep.Employee.Subdivision != null ? ep.Employee.Subdivision.Title : "Не указано",
+                    Statuse = ep.Statuse
+                })
+                .ToListAsync();
+
+            return Ok(participants);
+        }
+
+        [HttpPost("{id}/attendance")]
+        [Authorize(Roles = "штаб,командир")]
+        public async Task<IActionResult> SaveAttendance(int id, [FromBody] List<AttendanceDto> updates)
+        {
+            const int pointsPerEvent = 10;
+
+            var userIdString = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            if (!int.TryParse(userIdString, out int approverId))
+            {
+                return Unauthorized(new { message = "Не удалось определить проверяющего." });
+            }
+
+            var currentParticipants = await _context.EventParticipants
+                .Include(ep => ep.Employee)
+                .Where(ep => ep.EventId == id)
+                .ToListAsync();
+
+            foreach (var update in updates)
+            {
+                var participant = currentParticipants.FirstOrDefault(p => p.EmployeeId == update.EmployeeId);
+                if (participant != null && participant.Statuse != update.Statuse)
+                {
+                    participant.Statuse = update.Statuse;
+                    participant.ApproverId = approverId;
+
+                    int currentRating = participant.Employee.Rating ?? 0;
+
+                    if (update.Statuse)
+                    {
+                        participant.Employee.Rating = currentRating + pointsPerEvent;
+                    }
+                    else
+                    {
+                        participant.Employee.Rating = Math.Max(0, currentRating - pointsPerEvent);
+                    }
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return Ok(new { message = "Отметки сохранены, рейтинг пересчитан." });
         }
     }
 }
